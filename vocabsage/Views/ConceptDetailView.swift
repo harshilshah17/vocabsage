@@ -7,11 +7,6 @@
 
 import SwiftUI
 import CoreData
-#if os(macOS)
-import AppKit
-#else
-import UIKit
-#endif
 
 struct ConceptDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -121,12 +116,6 @@ struct ConceptDetailView: View {
                     }
                     .fontWeight(.semibold)
                 } else {
-                    Button {
-                        searchWikipedia(for: concept.title ?? "")
-                    } label: {
-                        Label("Search Wikipedia", systemImage: "magnifyingglass")
-                    }
-                    
                     Button("Edit") {
                         viewModel.isEditing = true
                     }
@@ -141,20 +130,6 @@ struct ConceptDetailView: View {
         .onAppear {
             viewModel.viewContext = viewContext
             viewModel.loadConcept(concept)
-        }
-    }
-    
-    private func searchWikipedia(for query: String) {
-        guard !query.isEmpty else { return }
-        
-        // Use Wikipedia search with query parameter for better results
-        let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
-        if let wikipediaURL = URL(string: "https://en.wikipedia.org/w/index.php?search=\(encodedQuery)") {
-            #if os(macOS)
-            NSWorkspace.shared.open(wikipediaURL)
-            #else
-            UIApplication.shared.open(wikipediaURL)
-            #endif
         }
     }
 }

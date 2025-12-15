@@ -40,7 +40,6 @@ VocabSage is an offline-first iOS/macOS application designed for developers who 
 - **Privacy-Focused**: All data stays on your device
 
 ### ✨ Additional Features
-- **Wikipedia Integration**: Quick search for concepts directly from detail view
 - **Review Tracking**: Mark concepts as reviewed with timestamps
 - **Ask the Sage Panel**: Placeholder for future AI-powered interactions (coming soon)
 
