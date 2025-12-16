@@ -14,37 +14,45 @@ struct ConceptDetailView: View {
     
     let concept: Concept
     @StateObject private var viewModel: ConceptDetailViewModel
+    @State private var selectedTab = 0
+    @State private var showAddNote = false
     
     init(concept: Concept) {
         self.concept = concept
-        // Temporary initialization, will be updated in onAppear
         _viewModel = StateObject(wrappedValue: ConceptDetailViewModel(concept: concept, viewContext: PersistenceController.shared.container.viewContext))
+    }
+    
+    var displayTitle: String {
+        let title = concept.title ?? ""
+        return title.hasPrefix("[Example] ") ? String(title.dropFirst(10)) : title
+    }
+    
+    var isExample: Bool {
+        (concept.title ?? "").hasPrefix("[Example]")
     }
     
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
-                // Title and Summary
-                VStack(alignment: .leading, spacing: 14) {
-                    if viewModel.isEditing {
-                        TextField("Title", text: $viewModel.title)
-                            .font(.system(size: 34, weight: .bold))
-                            .textFieldStyle(.plain)
-                        
-                        TextField("Summary", text: $viewModel.summary, axis: .vertical)
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(.secondary)
-                            .textFieldStyle(.plain)
-                            .lineLimit(2...4)
-                    } else {
-                        Text(concept.title ?? "")
+            VStack(alignment: .leading, spacing: 24) {
+                // Above the fold: Title, Definition, Confidence
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 8) {
+                        if isExample {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(.red)
+                        }
+                        Text(displayTitle)
                             .font(.system(size: 34, weight: .bold))
                             .foregroundColor(.primary)
-                        
-                        Text(concept.summary ?? "")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(.secondary)
                     }
+                    
+                    Text(concept.summary ?? "")
+                        .font(.system(size: 20, weight: .regular))
+                        .foregroundColor(.secondary)
+                    
+                    // Confidence Selector
+                    ConfidenceSelectorView(concept: concept)
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -52,54 +60,34 @@ struct ConceptDetailView: View {
                 Divider()
                     .padding(.horizontal, 20)
                 
-                // Mental Model Section
-                ConceptSectionView(
-                    title: "Mental Model",
-                    content: viewModel.isEditing ? $viewModel.mentalModel : .constant(concept.mentalModel ?? ""),
-                    isEditing: viewModel.isEditing,
-                    placeholder: "How you think about this concept..."
-                )
-                
-                // Why It Exists Section
-                ConceptSectionView(
-                    title: "Why It Exists",
-                    content: viewModel.isEditing ? $viewModel.whyItExists : .constant(concept.whyItExists ?? ""),
-                    isEditing: viewModel.isEditing,
-                    placeholder: "The problem this solves..."
-                )
-                
-                // Trade-offs Section
-                ConceptSectionView(
-                    title: "Trade-offs",
-                    content: viewModel.isEditing ? $viewModel.tradeoffs : .constant(concept.tradeoffs ?? ""),
-                    isEditing: viewModel.isEditing,
-                    placeholder: "Pros and cons..."
-                )
-                
-                // Gotchas Section
-                ConceptSectionView(
-                    title: "Gotchas",
-                    content: viewModel.isEditing ? $viewModel.gotchas : .constant(concept.gotchas ?? ""),
-                    isEditing: viewModel.isEditing,
-                    placeholder: "Common pitfalls and things to watch out for..."
-                )
-                
-                // Metadata
-                if !viewModel.isEditing {
-                    VStack(alignment: .leading, spacing: 10) {
-                        if let createdAt = concept.createdAt {
-                            Label("Created \(createdAt, style: .date)", systemImage: "calendar")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(.secondary.opacity(0.8))
-                        }
-                        if let lastReviewed = concept.lastReviewedAt {
-                            Label("Last reviewed \(lastReviewed, style: .date)", systemImage: "clock")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(.secondary.opacity(0.8))
+                // Tabs
+                VStack(alignment: .leading, spacing: 0) {
+                    // Tab Picker
+                    Picker("Tab", selection: $selectedTab) {
+                        Text("Explain").tag(0)
+                        Text("Use").tag(1)
+                        Text("Pitfalls").tag(2)
+                        Text("Test").tag(3)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 16)
+                    
+                    // Tab Content
+                    Group {
+                        switch selectedTab {
+                        case 0:
+                            ExplainTabView(concept: concept, viewModel: viewModel)
+                        case 1:
+                            UseTabView(concept: concept)
+                        case 2:
+                            PitfallsTabView(concept: concept)
+                        case 3:
+                            TestTabView(concept: concept)
+                        default:
+                            ExplainTabView(concept: concept, viewModel: viewModel)
                         }
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 8)
                 }
             }
             .padding(.bottom)
@@ -116,20 +104,224 @@ struct ConceptDetailView: View {
                     }
                     .fontWeight(.semibold)
                 } else {
+                    Button {
+                        showAddNote = true
+                    } label: {
+                        Label("Add Note", systemImage: "note.text")
+                    }
                     Button("Edit") {
                         viewModel.isEditing = true
-                    }
-                    Button {
-                        viewModel.markAsReviewed()
-                    } label: {
-                        Label("Mark Reviewed", systemImage: "checkmark.circle")
                     }
                 }
             }
         }
+        .sheet(isPresented: $showAddNote) {
+            AddNoteView(concept: concept)
+        }
         .onAppear {
             viewModel.viewContext = viewContext
             viewModel.loadConcept(concept)
+        }
+    }
+}
+
+struct ConfidenceSelectorView: View {
+    @ObservedObject var concept: Concept
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    var currentConfidence: Int16 {
+        concept.confidence ?? 0
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text("Confidence:")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(.secondary)
+            
+            ForEach(0..<3) { level in
+                Button {
+                    concept.confidence = Int16(level)
+                    concept.lastReviewedAt = Date()
+                    try? viewContext.save()
+                } label: {
+                    Text(emojiForLevel(level))
+                        .font(.system(size: 32))
+                        .opacity(level == currentConfidence ? 1.0 : 0.4)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+    
+    private func emojiForLevel(_ level: Int) -> String {
+        switch level {
+        case 0: return "😕"
+        case 1: return "🙂"
+        case 2: return "😄"
+        default: return "😕"
+        }
+    }
+}
+
+struct ExplainTabView: View {
+    let concept: Concept
+    @ObservedObject var viewModel: ConceptDetailViewModel
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Plain definition
+            if let mentalModel = concept.mentalModel, !mentalModel.isEmpty {
+                ConceptSectionView(
+                    title: "Definition",
+                    content: .constant(mentalModel),
+                    isEditing: false,
+                    placeholder: ""
+                )
+            }
+            
+            // Analogy
+            if let whyItExists = concept.whyItExists, !whyItExists.isEmpty {
+                ConceptSectionView(
+                    title: "Analogy",
+                    content: .constant(whyItExists),
+                    isEditing: false,
+                    placeholder: ""
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+struct UseTabView: View {
+    let concept: Concept
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Real systems
+            if let tradeoffs = concept.tradeoffs, !tradeoffs.isEmpty {
+                ConceptSectionView(
+                    title: "When to Use / When Not to",
+                    content: .constant(tradeoffs),
+                    isEditing: false,
+                    placeholder: ""
+                )
+            }
+            
+            // User notes
+            if let userNotes = concept.userNotes, !userNotes.isEmpty {
+                ConceptSectionView(
+                    title: "My Notes",
+                    content: .constant(userNotes),
+                    isEditing: false,
+                    placeholder: ""
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+struct PitfallsTabView: View {
+    let concept: Concept
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            if let gotchas = concept.gotchas, !gotchas.isEmpty {
+                ConceptSectionView(
+                    title: "Common Misunderstandings",
+                    content: .constant(gotchas),
+                    isEditing: false,
+                    placeholder: ""
+                )
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+struct TestTabView: View {
+    let concept: Concept
+    @State private var showAnswer = false
+    
+    var body: some View {
+        VStack(spacing: 24) {
+            Text("Quick Test")
+                .font(.system(size: 20, weight: .bold))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+            
+            VStack(alignment: .leading, spacing: 16) {
+                Text("What is \(concept.title?.replacingOccurrences(of: "[Example] ", with: "") ?? "this concept")?")
+                    .font(.system(size: 18, weight: .semibold))
+                
+                if showAnswer {
+                    Text(concept.summary ?? "")
+                        .font(.system(size: 16, weight: .regular))
+                        .foregroundColor(.secondary)
+                        .padding(.top, 8)
+                } else {
+                    Button("Show Answer") {
+                        withAnimation {
+                            showAnswer = true
+                        }
+                    }
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .padding(.top, 8)
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.thinMaterial)
+                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+            )
+            .padding(.horizontal, 20)
+        }
+    }
+}
+
+struct AddNoteView: View {
+    @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var concept: Concept
+    @State private var noteText: String = ""
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    TextEditor(text: $noteText)
+                        .frame(minHeight: 200)
+                } header: {
+                    Text("Add Your Note")
+                } footer: {
+                    Text("Add your own examples, mental models, or insights about this concept.")
+                }
+            }
+            .navigationTitle("Add Note")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        concept.userNotes = noteText
+                        try? viewContext.save()
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                }
+            }
+            .onAppear {
+                noteText = concept.userNotes ?? ""
+            }
         }
     }
 }
@@ -141,38 +333,30 @@ struct ConceptSectionView: View {
     let placeholder: String
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.system(size: 22, weight: .semibold))
+                .font(.system(size: 18, weight: .semibold))
                 .foregroundColor(.primary)
-                .padding(.horizontal, 20)
             
-            if isEditing {
-                TextEditor(text: $content)
-                    .font(.system(size: 17, weight: .regular))
-                    .frame(minHeight: 120)
-                    .padding(12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color(.systemGray6))
-                    )
-                    .padding(.horizontal, 20)
+            if content.isEmpty && !isEditing {
+                Text(placeholder)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.secondary.opacity(0.7))
+                    .italic()
             } else {
-                if content.isEmpty {
-                    Text(placeholder)
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .italic()
-                        .padding(.horizontal, 20)
-                } else {
-                    Text(content)
-                        .font(.system(size: 17, weight: .regular))
-                        .foregroundColor(.primary)
-                        .lineSpacing(6)
-                        .padding(.horizontal, 20)
-                }
+                Text(content)
+                    .font(.system(size: 15, weight: .regular))
+                    .foregroundColor(.primary)
+                    .lineSpacing(4)
             }
         }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: 1)
+        )
     }
 }
 
@@ -189,4 +373,3 @@ struct ConceptSectionView: View {
     }
     .environment(\.managedObjectContext, context)
 }
-

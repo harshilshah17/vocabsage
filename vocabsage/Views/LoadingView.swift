@@ -13,12 +13,26 @@ struct LoadingView: View {
     
     var body: some View {
         ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
+            // Gradient background
+            LinearGradient(
+                colors: [
+                    Color(.systemBackground),
+                    Color(.systemBackground).opacity(0.8)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
             VStack(spacing: 40) {
-                // Mirage-style animated spinner
+                // Mirage-style animated spinner with glass effect
                 ZStack {
+                    // Glass background
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .frame(width: 80, height: 80)
+                        .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+                    
                     // Outer circle
                     Circle()
                         .stroke(Color.primary.opacity(0.15), lineWidth: 2)
@@ -36,11 +50,18 @@ struct LoadingView: View {
                 }
                 .rotationEffect(.degrees(rotation))
                 
-                // App name
+                // App name with glass effect
                 Text("VocabSage")
                     .font(.system(size: 28, weight: .semibold, design: .default))
                     .foregroundColor(.primary)
                     .tracking(0.5)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        Capsule()
+                            .fill(.ultraThinMaterial)
+                            .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 4)
+                    )
             }
         }
         .onAppear {

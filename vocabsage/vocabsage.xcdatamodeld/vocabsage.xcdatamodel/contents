@@ -10,6 +10,11 @@
         <attribute name="gotchas" optional="YES" attributeType="String"/>
         <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="lastReviewedAt" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="confidence" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="reviewCount" optional="YES" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="nextReviewDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="userNotes" optional="YES" attributeType="String"/>
+        <attribute name="collection" optional="YES" attributeType="String"/>
     </entity>
     <elements>
         <element name="Concept" positionX="-63" positionY="-18" width="128" height="269"/>

@@ -41,7 +41,8 @@ VocabSage is an offline-first iOS/macOS application designed for developers who 
 
 ### ✨ Additional Features
 - **Review Tracking**: Mark concepts as reviewed with timestamps
-- **Ask the Sage Panel**: Placeholder for future AI-powered interactions (coming soon)
+- **Settings Screen**: Configure app behavior and manage data
+- **Privacy First**: No account, no tracking, no analytics - all data stored locally
 
 ## Technical Stack
 
@@ -59,11 +60,11 @@ vocabsage/
 │   ├── ConceptDetailView.swift
 │   ├── AddEditConceptView.swift
 │   ├── LoadingView.swift
-│   └── AskTheSageView.swift
+│   └── SettingsView.swift
 ├── ViewModels/         # MVVM view models
 │   ├── ConceptListViewModel.swift
 │   ├── ConceptDetailViewModel.swift
-│   └── AddEditConceptView.swift
+│   └── AddEditConceptViewModel.swift
 ├── Helpers/            # Utility functions
 │   └── MockData.swift
 ├── Persistence.swift   # Core Data stack
@@ -94,21 +95,29 @@ open vocabsage.xcodeproj
 
 ### Sample Data
 
-The app includes sample concepts for preview and testing:
-- Consistent Hashing
-- Backpressure
-- Idempotency
-- Eventual Consistency
+The app includes example concepts for preview and testing (clearly marked with "[Example]" prefix):
+- [Example] Consistent Hashing
+- [Example] Backpressure
+- [Example] Idempotency
+- [Example] Eventual Consistency
 
-Sample data is automatically seeded on first launch if the database is empty.
+Example data is automatically seeded on first launch if the database is empty. You can disable or remove example concepts from Settings.
 
 ## App Store Submission
 
 This app is currently being prepared for submission to the App Store. The app follows Apple's Human Interface Guidelines and is designed to provide a focused, distraction-free experience for developers building their technical knowledge base.
 
+## Privacy
+
+VocabSage is designed with privacy in mind:
+- **No account required**: Use the app without signing up
+- **No tracking**: We don't track your usage or behavior
+- **No analytics**: No data collection or analytics services
+- **Local storage only**: All your concepts are stored locally on your device
+- **Privacy Nutrition Label**: Nearly empty - we collect nothing
+
 ## Future Enhancements
 
-- **AI Integration**: "Ask the Sage" feature for AI-powered concept exploration
 - **Export/Import**: Backup and restore your concepts
 - **Rich Text Support**: Enhanced formatting options
 - **Concept Linking**: Link related concepts together

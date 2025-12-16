@@ -17,7 +17,10 @@ struct ConceptListView: View {
     
     @StateObject private var viewModel = ConceptListViewModel()
     @State private var showingAddConcept = false
-    @State private var showAskTheSage = false
+    @State private var showSettings = false
+    @State private var showDeleteAlert = false
+    @State private var conceptsToDelete: IndexSet?
+    @AppStorage("confirmBeforeDelete") private var confirmBeforeDelete = true
     
     var body: some View {
         NavigationView {
@@ -50,8 +53,8 @@ struct ConceptListView: View {
             .toolbar {
                 #if os(iOS)
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { showAskTheSage = true }) {
-                        Label("Ask the Sage", systemImage: "sparkles")
+                    Button(action: { showSettings = true }) {
+                        Label("Settings", systemImage: "gearshape")
                     }
                 }
                 #endif
@@ -67,21 +70,26 @@ struct ConceptListView: View {
                 }
             }
             #if os(iOS)
-            .sheet(isPresented: $showAskTheSage) {
-                NavigationView {
-                    AskTheSageView()
-                        .navigationTitle("Ask the Sage")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") {
-                                    showAskTheSage = false
-                                }
-                            }
-                        }
-                }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
             }
             #endif
+            .alert("Delete Concepts", isPresented: $showDeleteAlert) {
+                Button("Cancel", role: .cancel) {
+                    conceptsToDelete = nil
+                }
+                Button("Delete", role: .destructive) {
+                    if let offsets = conceptsToDelete {
+                        performDelete(offsets: offsets)
+                    }
+                    conceptsToDelete = nil
+                }
+            } message: {
+                if let offsets = conceptsToDelete {
+                    let count = offsets.count
+                    Text("Are you sure you want to delete \(count) concept\(count == 1 ? "" : "s")?")
+                }
+            }
         }
     }
     
@@ -90,6 +98,12 @@ struct ConceptListView: View {
             Image(systemName: "book.closed")
                 .font(.system(size: 56, weight: .light))
                 .foregroundColor(.secondary.opacity(0.6))
+                .padding(24)
+                .background(
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 4)
+                )
             
             VStack(spacing: 8) {
                 Text("No Concepts Yet")
@@ -101,12 +115,27 @@ struct ConceptListView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
+            .padding(20)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.thinMaterial)
+                    .shadow(color: .black.opacity(0.05), radius: 8, x: 0, y: 2)
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(40)
     }
     
     private func deleteConcepts(offsets: IndexSet) {
+        if confirmBeforeDelete {
+            conceptsToDelete = offsets
+            showDeleteAlert = true
+        } else {
+            performDelete(offsets: offsets)
+        }
+    }
+    
+    private func performDelete(offsets: IndexSet) {
         let filteredConcepts = viewModel.filteredConcepts(concepts)
         withAnimation {
             offsets.map { filteredConcepts[$0] }.forEach(viewContext.delete)
@@ -123,19 +152,48 @@ struct ConceptListView: View {
 struct ConceptRowView: View {
     let concept: Concept
     
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(concept.title ?? "")
-                .font(.system(size: 18, weight: .semibold, design: .default))
-                .foregroundColor(.primary)
-            
-            Text(concept.summary ?? "")
-                .font(.system(size: 15, weight: .regular, design: .default))
-                .foregroundColor(.secondary)
-                .lineLimit(2)
+    private var isExample: Bool {
+        (concept.title ?? "").hasPrefix("[Example]")
+    }
+    
+    private var displayTitle: String {
+        if isExample {
+            return String((concept.title ?? "").dropFirst(10)) // Remove "[Example] "
         }
-        .padding(.vertical, 12)
+        return concept.title ?? ""
+    }
+    
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 6) {
+                    if isExample {
+                        Image(systemName: "exclamationmark.circle.fill")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.red)
+                    }
+                    Text(displayTitle)
+                        .font(.system(size: 18, weight: .semibold, design: .default))
+                        .foregroundColor(.primary)
+                }
+                
+                Text(concept.summary ?? "")
+                    .font(.system(size: 15, weight: .regular, design: .default))
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+            
+            Spacer()
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 16)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(.thinMaterial)
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+        )
         .padding(.horizontal, 4)
+        .padding(.vertical, 4)
     }
 }
 
@@ -155,8 +213,9 @@ struct SearchBar: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.systemGray6))
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 8, x: 0, y: 2)
         )
     }
 }
